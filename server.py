@@ -2,7 +2,7 @@
 import socketserver
 import os
 
-# Copyright 2023 Julian Gallego Franco
+# Copyright 2023 Julian Gallego Franco, Abram Hindle, Eddie Antonio Santos
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,25 +21,31 @@ import os
 # some of the code is Copyright © 2001-2013 Python Software
 # Foundation; All Rights Reserved
 
+BUFFER_SIZE = 4096
+
+HOST = "localhost"
+PORT = 8080
+
+
 class MyWebServer(socketserver.BaseRequestHandler):
 
     def handle(self):
-        self.data = self.request.recv(1024).strip()
-        headers = self.data.decode('utf-8').split('\n')
-        request = headers[0].strip().split()
-        
-        if len(request) < 2:
+        # Extract the request line and its components
+        reqComponents = self.request.recv(BUFFER_SIZE).decode(
+            'utf-8').split('\n')[0].split()
+
+        if len(reqComponents) < 2:
             self.sendErrorResponse("400 Bad Request")
             return
 
-        method = request[0]
+        method = reqComponents[0]
         if method != "GET":
             self.sendErrorResponse("405 Method Not Allowed")
             return
-        
-        path = request[1]
+
+        path = reqComponents[1]
         filePath = os.path.abspath(os.path.join('./www', path.strip('/')))
-        
+
         if not os.path.exists(filePath) or not filePath.startswith(os.path.abspath('./www')):
             self.sendErrorResponse("404 Not Found")
             return
@@ -47,33 +53,31 @@ class MyWebServer(socketserver.BaseRequestHandler):
         if not path.endswith('/') and not os.path.isfile(filePath):
             self.sendRedirectResponse("301 Moved Permanently", path + '/')
             return
-        
+
         if path.endswith('/'):
             filePath = os.path.join(filePath, 'index.html')
-        
+
         try:
             with open(filePath, 'rb') as file:
                 content = file.read()
                 contentType = self.getContentType(filePath)
                 self.sendSuccessResponse(content, contentType)
-
-        except FileNotFoundError:
-            self.sendErrorResponse("404 Not Found")
+        except Exception:
+            self.sendErrorResponse("500 Internal Server Error")
 
     def getContentType(self, filePath):
-        ext = os.path.splitext(filePath)[1]
-        
-        if ext == ".html":
+        extension = os.path.splitext(filePath)[1]
+
+        if extension == ".html":
             return "text/html"
-        elif ext == ".css":
+        elif extension == ".css":
             return "text/css"
-        
-        return "text"
+
+        return "text/plain"
 
     def sendSuccessResponse(self, content, type):
         # headers
         res = f'HTTP/1.0 200 OK\r\n'
-        res += 'Cache-Control: no-cache\r\n'
         res += f'Content-Type: {type}; charset=utf-8\r\n'
         res += f'Content-Length: {len(content)}\r\n'
         res += 'Connection: close\r\n'
@@ -83,13 +87,11 @@ class MyWebServer(socketserver.BaseRequestHandler):
 
         self.request.sendall(res)
 
-    
     def sendRedirectResponse(self, status, location):
         # headers
         res = f'HTTP/1.0 {status}\r\n'
         res += 'Content-Type: text/html; charset=utf-8\r\n'
         res += f'Location: {location}\r\n'
-        res += 'Content-Length: 0\r\n'
         res += 'Connection: close\r\n'
         res += '\r\n'
 
@@ -99,20 +101,14 @@ class MyWebServer(socketserver.BaseRequestHandler):
         # headers
         res = f'HTTP/1.0 {status}\r\n'
         res += 'Content-Type: text/html; charset=utf-8\r\n'
-        res += 'Content-Length: 0\r\n'
         res += 'Connection: close\r\n'
         res += '\r\n'
 
         self.request.sendall(res.encode('utf-8'))
 
 
-
 if __name__ == "__main__":
-    HOST = "localhost" 
-    PORT = 8080
-
     socketserver.TCPServer.allow_reuse_address = True
-
     server = socketserver.TCPServer((HOST, PORT), MyWebServer)
 
     server.serve_forever()
