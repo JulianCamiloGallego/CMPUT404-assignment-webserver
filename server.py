@@ -30,9 +30,17 @@ PORT = 8080
 class MyWebServer(socketserver.BaseRequestHandler):
 
     def handle(self):
-        # Extract the request line and its components
-        reqComponents = self.request.recv(BUFFER_SIZE).decode(
-            'utf-8').split('\n')[0].split()
+        reqHeaders = self.request.recv(BUFFER_SIZE).decode(
+            'utf-8').strip().split('\n')
+        reqComponents = reqHeaders[0].strip().split()
+
+        hostCount = 0
+        for header in reqHeaders:
+            if header.startswith("Host:"):
+                hostCount += 1
+        if hostCount != 1:
+            self.sendErrorResponse("400 Bad Request")
+            return
 
         if len(reqComponents) < 2:
             self.sendErrorResponse("400 Bad Request")
@@ -76,31 +84,29 @@ class MyWebServer(socketserver.BaseRequestHandler):
         return "text/plain"
 
     def sendSuccessResponse(self, content, type):
-        # headers
-        res = f'HTTP/1.0 200 OK\r\n'
+        res = f'HTTP/1.1 200 OK\r\n'
         res += f'Content-Type: {type}; charset=utf-8\r\n'
         res += f'Content-Length: {len(content)}\r\n'
         res += 'Connection: close\r\n'
         res += '\r\n'
-        # body
         res = res.encode('utf-8') + content
 
         self.request.sendall(res)
 
     def sendRedirectResponse(self, status, location):
-        # headers
-        res = f'HTTP/1.0 {status}\r\n'
+        res = f'HTTP/1.1 {status}\r\n'
         res += 'Content-Type: text/html; charset=utf-8\r\n'
         res += f'Location: {location}\r\n'
+        res += f'Content-Length: 0\r\n'
         res += 'Connection: close\r\n'
         res += '\r\n'
 
         self.request.sendall(res.encode('utf-8'))
 
     def sendErrorResponse(self, status):
-        # headers
-        res = f'HTTP/1.0 {status}\r\n'
+        res = f'HTTP/1.1 {status}\r\n'
         res += 'Content-Type: text/html; charset=utf-8\r\n'
+        res += f'Content-Length: 0\r\n'
         res += 'Connection: close\r\n'
         res += '\r\n'
 
