@@ -38,16 +38,20 @@ class MyWebServer(socketserver.BaseRequestHandler):
         for header in reqHeaders:
             if header.startswith("Host:"):
                 hostCount += 1
+
         if hostCount != 1:
+            # Sent to any HTTP/1.1 requests that lack or contain more than one Host header field
             self.sendErrorResponse("400 Bad Request")
             return
 
         if len(reqComponents) < 2:
+            # Sent to any HTTP/1.1 requests that lack a Method and Path
             self.sendErrorResponse("400 Bad Request")
             return
 
         method = reqComponents[0]
         if method != "GET":
+            # Sent to any HTTP/1.1 requests whose method is not GET
             self.sendErrorResponse("405 Method Not Allowed")
             return
 
@@ -55,14 +59,18 @@ class MyWebServer(socketserver.BaseRequestHandler):
         filePath = os.path.abspath(os.path.join('./www', path.strip('/')))
 
         if not os.path.exists(filePath) or not filePath.startswith(os.path.abspath('./www')):
+            # Path does not exits or points in incorrect directory
             self.sendErrorResponse("404 Not Found")
             return
 
         if not path.endswith('/') and not os.path.isfile(filePath):
-            self.sendRedirectResponse("301 Moved Permanently", path + '/')
+            # Valid direcoty path missing a trailing /
+            self.sendRedirectResponse(
+                "301 Moved Permanently", os.path.normpath(path) + '/')
             return
 
         if path.endswith('/'):
+            # Return index.html for any valid paths ending in /
             filePath = os.path.join(filePath, 'index.html')
 
         try:
@@ -74,6 +82,7 @@ class MyWebServer(socketserver.BaseRequestHandler):
             self.sendErrorResponse("500 Internal Server Error")
 
     def getContentType(self, filePath):
+        # Get the correct response content type
         extension = os.path.splitext(filePath)[1]
 
         if extension == ".html":
@@ -84,6 +93,7 @@ class MyWebServer(socketserver.BaseRequestHandler):
         return "text/plain"
 
     def sendSuccessResponse(self, content, type):
+        # Serve file
         res = f'HTTP/1.1 200 OK\r\n'
         res += f'Content-Type: {type}; charset=utf-8\r\n'
         res += f'Content-Length: {len(content)}\r\n'
@@ -94,6 +104,7 @@ class MyWebServer(socketserver.BaseRequestHandler):
         self.request.sendall(res)
 
     def sendRedirectResponse(self, status, location):
+        # Redirect to correct path
         res = f'HTTP/1.1 {status}\r\n'
         res += 'Content-Type: text/html; charset=utf-8\r\n'
         res += f'Location: {location}\r\n'
@@ -104,6 +115,7 @@ class MyWebServer(socketserver.BaseRequestHandler):
         self.request.sendall(res.encode('utf-8'))
 
     def sendErrorResponse(self, status):
+        # Send error response
         res = f'HTTP/1.1 {status}\r\n'
         res += 'Content-Type: text/html; charset=utf-8\r\n'
         res += f'Content-Length: 0\r\n'
