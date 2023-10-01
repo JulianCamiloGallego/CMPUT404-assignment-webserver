@@ -64,7 +64,7 @@ class MyWebServer(socketserver.BaseRequestHandler):
             return
 
         if not path.endswith('/') and not os.path.isfile(filePath):
-            # Valid direcoty path missing a trailing /
+            # Valid diretory path missing a trailing /
             self.sendRedirectResponse(
                 "301 Moved Permanently", os.path.normpath(path) + '/')
             return
@@ -87,7 +87,8 @@ class MyWebServer(socketserver.BaseRequestHandler):
 
         if extension == ".html":
             return "text/html"
-        elif extension == ".css":
+        
+        if extension == ".css":
             return "text/css"
 
         return "text/plain"
