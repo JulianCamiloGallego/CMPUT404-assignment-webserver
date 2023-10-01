@@ -59,12 +59,12 @@ class MyWebServer(socketserver.BaseRequestHandler):
         filePath = os.path.abspath(os.path.join('./www', path.strip('/')))
 
         if not os.path.exists(filePath) or not filePath.startswith(os.path.abspath('./www')):
-            # Path does not exits or points in incorrect directory
+            # Path does not exist or points to incorrect directory
             self.sendErrorResponse("404 Not Found")
             return
 
         if not path.endswith('/') and not os.path.isfile(filePath):
-            # Valid diretory path missing a trailing /
+            # Valid directory path missing a trailing /
             self.sendRedirectResponse(
                 "301 Moved Permanently", os.path.normpath(path) + '/')
             return
